@@ -291,12 +291,22 @@
       </div>
       <div class="panel form-panel">
         <h2>Data Management</h2>
-        <p class="muted">All data is stored locally in this browser. Export a backup regularly.</p>
+        <p class="muted">All data is stored locally in this browser — a phone/tablet and a PC each keep their own separate copy, even on the same web address. Export a backup regularly.</p>
         <div class="btn-row">
           <button class="btn btn-secondary" id="exportDataBtn">Export Backup (JSON)</button>
-          <button class="btn btn-secondary" id="importDataBtn">Import Backup</button>
+          <button class="btn btn-secondary" id="copyBackupBtn">Copy Backup to Clipboard</button>
+          <button class="btn btn-secondary" id="importDataBtn">Import Backup (File)</button>
           <input type="file" id="importFileInput" accept="application/json" class="hidden">
           <button class="btn btn-danger" id="resetDataBtn">Reset All Data</button>
+        </div>
+        <p class="muted" style="margin-top:12px;">
+          <strong>Moving data to a phone or tablet:</strong> on the device that has your real data, click "Copy Backup to Clipboard", then paste it into a note, email, or chat message to yourself. Open that note/message on the other device, copy the text, and paste it below.
+        </p>
+        <label>Paste Backup JSON <small class="muted">(from clipboard, a note, or an email)</small>
+          <textarea id="importTextArea" rows="4" placeholder="Paste the copied backup text here..."></textarea>
+        </label>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="importTextBtn">Import From Pasted Text</button>
         </div>
       </div>
     </section>

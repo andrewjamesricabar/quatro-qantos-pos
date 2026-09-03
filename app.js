@@ -2264,22 +2264,59 @@ function exportBackup() {
   URL.revokeObjectURL(url);
 }
 
+function applyImportedBackupText(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed.menu || !parsed.inventory) throw new Error("That doesn't look like a QQ POS backup.");
+    if (!confirm("Import this backup? It will replace all current data on this device.")) return;
+    STATE = parsed;
+    saveState();
+    switchTab("dashboard");
+    alert("Backup imported successfully.");
+  } catch (e) {
+    alert("Could not import backup: " + e.message);
+  }
+}
+
 function importBackup(file) {
   const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const parsed = JSON.parse(reader.result);
-      if (!parsed.menu || !parsed.inventory) throw new Error("Invalid backup file.");
-      if (!confirm("Import this backup? It will replace all current data.")) return;
-      STATE = parsed;
-      saveState();
-      switchTab("dashboard");
-      alert("Backup imported successfully.");
-    } catch (e) {
-      alert("Could not import file: " + e.message);
-    }
-  };
+  reader.onload = () => applyImportedBackupText(reader.result);
   reader.readAsText(file);
+}
+
+function importBackupFromText() {
+  const text = $("#importTextArea").value.trim();
+  if (!text) { alert("Paste the backup text first."); return; }
+  applyImportedBackupText(text);
+  $("#importTextArea").value = "";
+}
+
+function copyBackupToClipboard() {
+  const text = JSON.stringify(STATE, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => alert("Backup copied to clipboard. Paste it into a note, email, or chat message to move it to another device."))
+      .catch(() => fallbackCopyToClipboard(text));
+  } else {
+    fallbackCopyToClipboard(text);
+  }
+}
+
+function fallbackCopyToClipboard(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand("copy");
+    alert("Backup copied to clipboard. Paste it into a note, email, or chat message to move it to another device.");
+  } catch (e) {
+    alert("Couldn't copy automatically. Use Export Backup (JSON) instead and transfer the file manually.");
+  }
+  document.body.removeChild(ta);
 }
 
 function resetAllData() {
@@ -2383,11 +2420,13 @@ function init() {
   $("#saveSettingsBtn").addEventListener("click", saveSettings);
   $("#saveHappyHourBtn").addEventListener("click", saveHappyHourSettings);
   $("#exportDataBtn").addEventListener("click", exportBackup);
+  $("#copyBackupBtn").addEventListener("click", copyBackupToClipboard);
   $("#importDataBtn").addEventListener("click", () => $("#importFileInput").click());
   $("#importFileInput").addEventListener("change", (e) => {
     if (e.target.files[0]) importBackup(e.target.files[0]);
     e.target.value = "";
   });
+  $("#importTextBtn").addEventListener("click", importBackupFromText);
   $("#resetDataBtn").addEventListener("click", resetAllData);
 
   // Manager PIN gate
