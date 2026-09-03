@@ -1,5 +1,4 @@
-// Bump this whenever index.html/app.js/styles.css change so clients pick up the new version.
-const CACHE_NAME = "qq-pos-cache-v1";
+const CACHE_NAME = "qq-pos-cache-v2";
 
 const CORE_ASSETS = [
   "./",
@@ -9,6 +8,12 @@ const CORE_ASSETS = [
   "./manifest.json",
   "./Images/QQ Logo.jpg"
 ];
+
+// App-shell files change often as the app gets updated, so they must always be
+// re-checked against the network — a cache-first strategy here would freeze
+// the app on whatever version happened to be cached on first install, with no
+// way for it to ever pick up a later update.
+const NETWORK_FIRST_PATHS = ["/index.html", "/app.js", "/styles.css", "/manifest.json", "/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,12 +29,33 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Cache-first for same-origin GET requests, falling back to network and caching
-// whatever comes back so menu photos and other assets work offline after first view.
+function isNetworkFirst(url) {
+  return NETWORK_FIRST_PATHS.some((path) => url.pathname === path || url.pathname.endsWith(path));
+}
+
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) {
+  const url = new URL(event.request.url);
+  if (event.request.method !== "GET" || url.origin !== self.location.origin) {
     return;
   }
+
+  if (isNetworkFirst(url)) {
+    // Network-first: always try to get the latest app code; fall back to the
+    // last cached copy only when actually offline.
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for everything else (menu photos, etc.) — these rarely change
+  // and benefit from not being re-fetched every time.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;

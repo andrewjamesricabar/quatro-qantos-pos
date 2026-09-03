@@ -2478,4 +2478,12 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Service worker registration failed:", err));
   });
+  // Once a newly-installed service worker takes over, reload so the page picks up
+  // the fresh app code immediately instead of waiting for a second manual refresh.
+  let hasReloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hasReloadedForUpdate) return;
+    hasReloadedForUpdate = true;
+    location.reload();
+  });
 }
