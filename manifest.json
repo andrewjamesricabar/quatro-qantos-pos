@@ -1,0 +1,16 @@
+{
+  "name": "Quatro Qantos POS & Inventory",
+  "short_name": "QQ POS",
+  "description": "Point of sale and inventory management for Quatro Qantos Bar & Billiards",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "/index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14121a",
+  "theme_color": "#8b6fd9",
+  "icons": [
+    { "src": "Images/QQ Logo.jpg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any" },
+    { "src": "Images/QQ Logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ]
+}

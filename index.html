@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QQ POS &amp; Inventory</title>
+<link rel="icon" type="image/jpeg" href="Images/QQ Logo.jpg">
+<link rel="stylesheet" href="styles.css">
+
+<!-- Installable app (PWA) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#8b6fd9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QQ POS">
+<link rel="apple-touch-icon" href="Images/QQ Logo.jpg">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HEADER / NAV -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo-wrap"><img src="Images/QQ Logo.jpg" alt="Quatro Qantos logo" class="brand-logo"></span>
+      <div class="brand-text">
+        <strong id="restaurantNameDisplay">Restaurant</strong>
+        <small id="clockDisplay">--</small>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="pos">POS</button>
+      <div class="nav-dropdown">
+        <button class="tab-btn dropdown-toggle" id="adminDropdownToggle" type="button">
+          Admin <span id="lowStockBadge" class="badge hidden">0</span> <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="dropdown-menu hidden" id="adminDropdownMenu">
+          <button class="tab-btn" data-tab="menu">Menu Management <span class="tab-lock-icon">🔒</span></button>
+          <button class="tab-btn" data-tab="inventory">Inventory <span class="tab-lock-icon">🔒</span></button>
+          <button class="tab-btn" data-tab="requests">Purchase Requests <span id="pendingRequestsBadge" class="badge hidden">0</span> <span class="tab-lock-icon">🔒</span></button>
+          <button class="tab-btn" data-tab="reports">Reports <span class="tab-lock-icon">🔒</span></button>
+          <button class="tab-btn" data-tab="settings">Settings <span class="tab-lock-icon">🔒</span></button>
+        </div>
+      </div>
+      <button class="tab-btn lock-btn hidden" id="lockManagerBtn" title="Lock manager access">🔓 Lock</button>
+    </nav>
+  </header>
+
+  <main class="content">
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <h1>Dashboard</h1>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span class="stat-label">Today's Sales</span>
+          <span class="stat-value" id="statTodaySales">₱0.00</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Orders Today</span>
+          <span class="stat-value" id="statTodayOrders">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Menu Items</span>
+          <span class="stat-value" id="statMenuCount">0</span>
+        </div>
+        <div class="stat-card warn">
+          <span class="stat-label">Low Stock Items</span>
+          <span class="stat-value" id="statLowStock">0</span>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="panel">
+          <h2>Best Sellers Today</h2>
+          <div class="table-scroll">
+          <table class="data-table" id="bestSellersTable">
+            <thead><tr><th>Item</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Low Stock Alerts</h2>
+          <div class="table-scroll">
+          <table class="data-table" id="lowStockTable">
+            <thead><tr><th>Ingredient</th><th>On Hand</th><th>Reorder Level</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- POS -->
+    <section id="tab-pos" class="tab-panel">
+      <div class="pos-layout">
+        <div class="pos-menu-side">
+          <div id="happyHourBanner" class="happy-hour-banner hidden"></div>
+          <input type="text" id="posSearchInput" class="pos-search-input" placeholder="🔍 Search menu items...">
+          <div class="pos-category-tabs" id="posCategoryTabs"></div>
+          <div class="pos-item-grid" id="posItemGrid"></div>
+        </div>
+        <div class="pos-cart-side">
+          <h2>Current Order</h2>
+          <div class="cart-list" id="cartList">
+            <p class="empty-state">No items yet. Tap a menu item to add it.</p>
+          </div>
+          <div class="cart-totals">
+            <div class="row"><span>Subtotal</span><span id="cartSubtotal">₱0.00</span></div>
+            <div class="row hidden happy-hour-row" id="cartHappyHourRow"><span>🎉 Happy Hour BOGO</span><span id="cartHappyHourDiscount">-₱0.00</span></div>
+            <div class="row" id="cartServiceRow"><span>Service Charge</span><span id="cartService">₱0.00</span></div>
+            <div class="row" id="cartTaxRow"><span>Tax</span><span id="cartTax">₱0.00</span></div>
+            <div class="row total"><span>Total</span><span id="cartTotal">₱0.00</span></div>
+          </div>
+          <div class="cart-actions">
+            <button class="btn btn-secondary" id="clearCartBtn">Clear</button>
+            <button class="btn btn-primary" id="checkoutBtn">Checkout</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MENU MANAGEMENT -->
+    <section id="tab-menu" class="tab-panel">
+      <div class="panel-header">
+        <h1>Menu Management</h1>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="manageCategoriesBtn">Manage Categories</button>
+          <button class="btn btn-secondary" id="fillDefaultPhotosBtn">+ Fill In Placeholder Photos</button>
+          <button class="btn btn-primary" id="addMenuItemBtn">+ Add Menu Item</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <select id="menuCategoryFilter"><option value="">All Categories</option></select>
+        <input type="text" id="menuSearchInput" placeholder="Search menu items...">
+      </div>
+      <div class="table-scroll">
+      <table class="data-table" id="menuTable">
+        <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Ingredients</th><th>Status</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section id="tab-inventory" class="tab-panel">
+      <div class="panel-header">
+        <h1>Inventory</h1>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="bulkAddInventoryBtn">+ Add All Menu Items to Inventory</button>
+          <button class="btn btn-primary" id="addInventoryItemBtn">+ Add Ingredient / Stock Item</button>
+        </div>
+      </div>
+      <div class="pos-category-tabs" id="inventoryCategoryTabs"></div>
+      <div class="filter-row">
+        <input type="text" id="inventorySearchInput" placeholder="Search inventory...">
+        <label class="checkbox-inline"><input type="checkbox" id="lowStockOnlyToggle"> Low stock only</label>
+        <button class="btn btn-danger hidden" id="inventoryDeleteSelectedBtn">Delete Selected (0)</button>
+      </div>
+      <div class="table-scroll">
+      <table class="data-table" id="inventoryTable">
+        <thead><tr><th><input type="checkbox" id="inventorySelectAllCheckbox"></th><th>Ingredient</th><th>On Hand</th><th>Unit</th><th>Reorder Level</th><th>Unit Cost</th><th>Used By</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+
+      <div class="panel hidden" id="onHoldPanel" style="margin-top:14px;">
+        <button type="button" class="onhold-toggle-header" id="onHoldToggleHeader">
+          <span>⏸ Items On Hold (<span id="onHoldCount">0</span>)</span>
+          <span class="dropdown-caret" id="onHoldCaret">▾</span>
+        </button>
+        <div class="table-scroll hidden" id="onHoldContent">
+        <table class="data-table" id="onHoldTable">
+          <thead><tr><th>Item</th><th>Category</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PURCHASE REQUESTS -->
+    <section id="tab-requests" class="tab-panel">
+      <div class="panel-header">
+        <h1>Purchase Requests</h1>
+        <button class="btn btn-primary" id="addRequestBtn">+ New Request</button>
+      </div>
+      <div class="filter-row">
+        <select id="requestDeptFilter">
+          <option value="">All Departments</option>
+          <option value="Kitchen">Kitchen</option>
+          <option value="Bar">Bar</option>
+          <option value="Other">Other</option>
+        </select>
+        <label class="checkbox-inline"><input type="checkbox" id="requestShowPurchased"> Show fulfilled</label>
+      </div>
+      <div class="table-scroll">
+      <table class="data-table" id="requestsTable">
+        <thead><tr><th>Item</th><th>Dept</th><th>Qty</th><th>Used For</th><th>Requested</th><th>Status</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="tab-reports" class="tab-panel">
+      <h1>Sales Reports</h1>
+      <div class="filter-row">
+        <label>From <input type="date" id="reportFrom"></label>
+        <label>To <input type="date" id="reportTo"></label>
+        <button class="btn btn-secondary" id="reportRunBtn">Run</button>
+        <button class="btn btn-secondary" id="reportTodayBtn">Today</button>
+      </div>
+      <div class="stat-grid small">
+        <div class="stat-card">
+          <span class="stat-label">Total Sales</span>
+          <span class="stat-value" id="reportTotalSales">₱0.00</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Orders</span>
+          <span class="stat-value" id="reportOrderCount">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg. Order Value</span>
+          <span class="stat-value" id="reportAvgOrder">₱0.00</span>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="panel">
+          <h2>Top Selling Items</h2>
+          <div class="table-scroll">
+          <table class="data-table" id="reportTopItemsTable">
+            <thead><tr><th>Item</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Order History</h2>
+          <div class="table-scroll">
+          <table class="data-table" id="reportOrdersTable">
+            <thead><tr><th>#</th><th>Date/Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="tab-panel">
+      <h1>Settings</h1>
+      <div class="panel form-panel">
+        <label>Restaurant Name
+          <input type="text" id="settingRestaurantName">
+        </label>
+        <label>Currency Symbol
+          <input type="text" id="settingCurrency" maxlength="3">
+        </label>
+        <label>Tax Rate (%)
+          <input type="number" id="settingTaxRate" min="0" step="0.01">
+        </label>
+        <label>Service Charge (%)
+          <input type="number" id="settingServiceRate" min="0" step="0.01">
+        </label>
+        <label>Receipt Footer Message
+          <input type="text" id="settingReceiptFooter">
+        </label>
+        <label>Manager PIN <small class="muted">(protects Inventory, Reports &amp; Settings, and voiding orders)</small>
+          <input type="password" id="settingManagerPin" maxlength="8" autocomplete="off">
+        </label>
+        <p class="muted">Note: this PIN is a basic access gate stored in this browser only — it deters casual staff access but is not encryption-grade security. Anyone with technical access to this device's browser tools could bypass it.</p>
+        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+      </div>
+      <div class="panel form-panel">
+        <h2>Happy Hour Promo</h2>
+        <label class="checkbox-inline"><input type="checkbox" id="settingHappyHourEnabled"> Enable Happy Hour Buy-1-Take-1</label>
+        <label>Category <small class="muted">(every item in this category becomes Buy-1-Take-1 during the window below)</small>
+          <select id="settingHappyHourCategory"></select>
+        </label>
+        <label>Start Time <small class="muted">(Philippine Time)</small>
+          <input type="time" id="settingHappyHourStart">
+        </label>
+        <label>End Time <small class="muted">(Philippine Time)</small>
+          <input type="time" id="settingHappyHourEnd">
+        </label>
+        <p class="muted">For every 2 of the same item ordered from this category during the window, 1 is free — applied automatically at checkout. Uses actual Philippine Time regardless of this device's own clock or timezone setting.</p>
+        <button class="btn btn-primary" id="saveHappyHourBtn">Save Happy Hour Settings</button>
+      </div>
+      <div class="panel form-panel">
+        <h2>Data Management</h2>
+        <p class="muted">All data is stored locally in this browser. Export a backup regularly.</p>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="exportDataBtn">Export Backup (JSON)</button>
+          <button class="btn btn-secondary" id="importDataBtn">Import Backup</button>
+          <input type="file" id="importFileInput" accept="application/json" class="hidden">
+          <button class="btn btn-danger" id="resetDataBtn">Reset All Data</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+  <footer class="app-footer">© AJR 2026</footer>
+</div>
+
+<!-- MODAL: Purchase Request -->
+<div class="modal-overlay hidden" id="requestModal">
+  <div class="modal">
+    <h2 id="requestModalTitle">New Purchase Request</h2>
+    <input type="hidden" id="requestId">
+    <label>Item Name <input type="text" id="requestItemName" placeholder="e.g. Chicken Wings, Ice, Napkins"></label>
+    <label>Department
+      <select id="requestDept">
+        <option>Kitchen</option>
+        <option>Bar</option>
+        <option>Other</option>
+      </select>
+    </label>
+    <label>Quantity Needed <input type="number" id="requestQty" min="0" step="0.01"></label>
+    <label>Unit <input type="text" id="requestUnit" placeholder="pcs, kg, case, etc."></label>
+    <label>Used For / Menu Item(s) <input type="text" id="requestUsedFor" placeholder="e.g. Chicken Wings (all flavors), Bucket of Beers"></label>
+    <label>Notes (optional) <input type="text" id="requestNotes"></label>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="requestCancelBtn">Cancel</button>
+      <button class="btn btn-danger hidden" id="requestDeleteBtn">Delete</button>
+      <button class="btn btn-primary" id="requestSaveBtn">Save Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Category Manager -->
+<div class="modal-overlay hidden" id="categoryManagerModal">
+  <div class="modal">
+    <h2>Manage Categories</h2>
+    <p class="muted">Rename a category and every menu item using it updates automatically. Renaming to an existing category name merges the two.</p>
+    <div id="categoryManagerList" class="recipe-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="categoryManagerCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="categoryManagerSaveBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Menu Item Editor -->
+<div class="modal-overlay hidden" id="menuItemModal">
+  <div class="modal">
+    <h2 id="menuItemModalTitle">Add Menu Item</h2>
+    <input type="hidden" id="menuItemId">
+    <label>Name <input type="text" id="menuItemName"></label>
+    <label>Category
+      <select id="menuItemCategory"></select>
+    </label>
+    <label>Price (₱) <input type="number" id="menuItemPrice" min="0" step="0.01"></label>
+    <label class="checkbox-inline"><input type="checkbox" id="menuItemActive" checked> Active (visible in POS)</label>
+
+    <h3>Photo</h3>
+    <div class="image-upload-row">
+      <img id="menuItemImagePreview" class="item-image-preview hidden" alt="Menu item photo">
+      <div class="image-upload-controls">
+        <input type="file" id="menuItemImageInput" accept="image/*" class="hidden">
+        <button type="button" class="btn btn-secondary btn-small" id="menuItemImagePickBtn">Choose Image</button>
+        <button type="button" class="btn btn-secondary btn-small hidden" id="menuItemImageRemoveBtn">Remove</button>
+      </div>
+    </div>
+
+    <h3>Ingredients Used (for auto stock deduction)</h3>
+    <div id="menuItemRecipeList" class="recipe-list"></div>
+    <div class="recipe-add-row">
+      <select id="recipeIngredientSelect"></select>
+      <input type="number" id="recipeIngredientQty" min="0" step="0.01" placeholder="Qty per serving">
+      <button class="btn btn-secondary" id="addRecipeLineBtn">+ Add</button>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="menuItemCancelBtn">Cancel</button>
+      <button class="btn btn-danger hidden" id="menuItemDeleteBtn">Delete</button>
+      <button class="btn btn-primary" id="menuItemSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Inventory Item Editor -->
+<div class="modal-overlay hidden" id="inventoryItemModal">
+  <div class="modal">
+    <h2 id="inventoryItemModalTitle">Add Ingredient</h2>
+    <input type="hidden" id="inventoryItemId">
+    <label>Name <input type="text" id="inventoryItemName"></label>
+    <label>Unit (kg, pcs, L, etc.) <input type="text" id="inventoryItemUnit"></label>
+    <label>Quantity on Hand <input type="number" id="inventoryItemQty" min="0" step="0.01"></label>
+    <label>Reorder Level <input type="number" id="inventoryItemReorder" min="0" step="0.01"></label>
+    <label>Unit Cost (₱) <input type="number" id="inventoryItemCost" min="0" step="0.01"></label>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="inventoryItemCancelBtn">Cancel</button>
+      <button class="btn btn-danger hidden" id="inventoryItemDeleteBtn">Delete</button>
+      <button class="btn btn-primary" id="inventoryItemSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Stock Adjustment -->
+<div class="modal-overlay hidden" id="stockAdjustModal">
+  <div class="modal">
+    <h2>Adjust Stock</h2>
+    <input type="hidden" id="stockAdjustId">
+    <p id="stockAdjustItemLabel" class="muted"></p>
+    <label>Adjustment Type
+      <select id="stockAdjustType">
+        <option value="add">Stock In (Restock / Delivery)</option>
+        <option value="remove">Stock Out (Waste / Spoilage / Correction)</option>
+        <option value="set">Set Exact Quantity</option>
+      </select>
+    </label>
+    <label>Amount <input type="number" id="stockAdjustAmount" min="0" step="0.01"></label>
+    <label>Reason
+      <select id="stockAdjustReason">
+        <option>Restock / Delivery</option>
+        <option>Bad Order / Waste</option>
+        <option>Spoilage</option>
+        <option>Customer Return</option>
+        <option>Inventory Correction</option>
+        <option>Other</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="stockAdjustCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="stockAdjustSaveBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Stock Adjustment History -->
+<div class="modal-overlay hidden" id="stockHistoryModal">
+  <div class="modal">
+    <h2>Stock History</h2>
+    <p id="stockHistoryItemLabel" class="muted"></p>
+    <div id="stockHistoryList" class="recipe-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="stockHistoryCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Merge Inventory Item -->
+<div class="modal-overlay hidden" id="mergeInventoryModal">
+  <div class="modal">
+    <h2>Merge Ingredient</h2>
+    <p class="muted" id="mergeInventorySourceLabel"></p>
+    <label>Merge into
+      <select id="mergeInventoryTarget"></select>
+    </label>
+    <p class="muted" style="font-size:12px;">Every menu item currently linked to this ingredient will be re-linked to the one you pick. Its on-hand quantity is added to the target's. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="mergeInventoryCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="mergeInventoryConfirmBtn">Merge</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Order Date -->
+<div class="modal-overlay hidden" id="editOrderDateModal">
+  <div class="modal">
+    <h2>Edit Order Date</h2>
+    <p class="muted" id="editOrderDateLabel"></p>
+    <label>Actual Purchase Date &amp; Time
+      <input type="datetime-local" id="editOrderDateInput">
+    </label>
+    <p class="muted" style="font-size:12px;">Use this when an order is being punched in late (e.g. recording a sale from a couple of days ago). This changes which day it counts toward in sales reports and the dashboard.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="editOrderDateCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="editOrderDateSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Manager PIN -->
+<div class="modal-overlay hidden" id="pinModal">
+  <div class="modal">
+    <h2>Manager Access Required</h2>
+    <p class="muted" id="pinModalMessage">Enter the manager PIN to continue.</p>
+    <label>PIN <input type="password" id="pinInput" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+    <p class="error-text hidden" id="pinError">Incorrect PIN. Try again.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="pinCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="pinSubmitBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Bucket Builder -->
+<div class="modal-overlay hidden" id="bucketBuilderModal">
+  <div class="modal">
+    <h2 id="bucketBuilderTitle">Build Your Bucket</h2>
+    <p class="muted" id="bucketBuilderSubtitle">Pick 6 bottles total.</p>
+    <div id="bucketBuilderOptions" class="bucket-options"></div>
+    <div class="row total bucket-total-row"><span>Total selected</span><span id="bucketBuilderTotal">0 / 6</span></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="bucketBuilderCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="bucketBuilderAddBtn" disabled>Add to Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Checkout -->
+<div class="modal-overlay hidden" id="checkoutModal">
+  <div class="modal">
+    <h2>Checkout</h2>
+
+    <label>Senior Citizen / PWD Discount
+      <select id="checkoutDiscountType">
+        <option value="none">None</option>
+        <option value="senior">Senior Citizen (RA 9994) — 20% + VAT exempt</option>
+        <option value="pwd">PWD (RA 10754) — 20% + VAT exempt</option>
+      </select>
+    </label>
+    <div id="checkoutDiscountFields" class="hidden">
+      <label>Cardholder Name <input type="text" id="checkoutDiscountName" placeholder="Full name as shown on ID"></label>
+      <label>OSCA / PWD ID Number <input type="text" id="checkoutDiscountIdNumber" placeholder="ID number"></label>
+      <p class="muted" style="font-size:12px;">Applies the government-mandated 20% discount and 12% VAT exemption to this order, per RA 9994 / RA 10754. Only one qualifying diner's discount can be applied per transaction — this assumes the whole order is for that one diner. Verify alcohol-item eligibility and service-charge treatment with your accountant for your specific setup.</p>
+    </div>
+
+    <div class="cart-totals">
+      <div class="row"><span>Subtotal</span><span id="checkoutSubtotalDisplay">₱0.00</span></div>
+      <div class="row hidden happy-hour-row" id="checkoutHappyHourRow"><span>🎉 Happy Hour BOGO</span><span id="checkoutHappyHourDisplay">-₱0.00</span></div>
+      <div class="row hidden happy-hour-row" id="checkoutDiscountRow"><span>Senior/PWD Discount</span><span id="checkoutDiscountDisplay">-₱0.00</span></div>
+      <div class="row" id="checkoutServiceRow"><span>Service Charge</span><span id="checkoutServiceDisplay">₱0.00</span></div>
+      <div class="row" id="checkoutTaxRow"><span>Tax</span><span id="checkoutTaxDisplay">₱0.00</span></div>
+      <div class="row total"><span>Total Due</span><span id="checkoutTotalDisplay">₱0.00</span></div>
+    </div>
+
+    <label>Payment Method
+      <select id="checkoutPaymentMethod">
+        <option value="Cash">Cash</option>
+        <option value="GCash">GCash</option>
+        <option value="Card">Card</option>
+        <option value="Other">Other</option>
+      </select>
+    </label>
+    <label id="cashTenderedWrap">Cash Tendered (₱)
+      <input type="number" id="checkoutCashTendered" min="0" step="0.01">
+    </label>
+    <div class="row"><span>Change</span><span id="checkoutChangeDisplay">₱0.00</span></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="checkoutCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="checkoutConfirmBtn">Complete Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Receipt -->
+<div class="modal-overlay hidden" id="receiptModal">
+  <div class="modal receipt-modal">
+    <div id="receiptContent" class="receipt"></div>
+    <div class="modal-actions no-print">
+      <button class="btn btn-danger" id="receiptVoidBtn">Void This Order</button>
+      <button class="btn btn-secondary" id="receiptCloseBtn">Close</button>
+      <button class="btn btn-primary" id="receiptPrintBtn">Print</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

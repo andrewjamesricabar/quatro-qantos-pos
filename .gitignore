@@ -1,0 +1,4 @@
+# Local data exports/backups — contain manager PIN, orders, and other business data.
+# Never publish these to the public repo.
+*.json.bak
+qq-pos-backup*.json
